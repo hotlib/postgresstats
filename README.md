@@ -19,4 +19,4 @@ The result will be a dump which checks the following:
 +   tables that have been not vacuumed or analysed for longer than 14 days.
    
 ### TODO
-Tested only on PostgreSQL 9.1 and 9.2
+Tested only on PostgreSQL 9.2 
