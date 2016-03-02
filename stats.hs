@@ -10,7 +10,7 @@ import Control.Monad.Reader
 type TableSizeAndWritesSelectResult = (String, String, Maybe Int)
 type LeastUsedIndexesResult = (String, Int, Int)
 type SharredBufferTableResult = (String, Int)
-type SharredBufferOverallResult = (Int, Int, Double)
+type SharredBufferOverallResult = (Maybe Int, Maybe Int, Maybe Double)
 type UnusedIndexesResult = (String, String, Int, String, String, Maybe Int)
 type LastAnalyzedAndVacuumedResult = (String, Maybe UTCTime, Maybe UTCTime, Maybe UTCTime, Maybe UTCTime)
 type TransactionStuckResult = (Bool, Maybe UTCTime, String, Maybe UTCTime, Maybe UTCTime)
@@ -67,8 +67,8 @@ findLongestQueryText = text "(query time in seconds, query)"
 findLongestQuerySelect :: Query
 findLongestQuerySelect = "SELECT \
 	\COALESCE(extract(epoch FROM CURRENT_TIMESTAMP-query_start),0) AS query_time_in_seconds, \
-	\current_query FROM pg_stat_activity WHERE current_query NOT LIKE '<IDLE%' \
-	\GROUP BY query_time_in_seconds, current_query \
+	\state FROM pg_stat_activity WHERE state NOT LIKE 'idle%' \
+	\GROUP BY query_time_in_seconds, state \
 	\ORDER BY query_time_in_seconds DESC \
 	\LIMIT 3"
 
@@ -89,11 +89,11 @@ transactionStuckSelect :: Query
 transactionStuckSelect = "SELECT \
 	\waiting, \
 	\xact_start, \
-	\current_query, \ 
+	\state, \ 
 	\query_start, \
 	\backend_start \
 	\FROM pg_stat_activity WHERE \
-	\(current_query = '<IDLE> in transaction' OR waiting = TRUE) \
+	\(state = 'idle in transaction' OR waiting = TRUE) \
 	\AND (xact_start < (now()::DATE - interval '20 minute')::TIMESTAMP)"
 
 lastAnalyzedAndVacuumedText :: Doc
@@ -148,7 +148,8 @@ sharredBufferOverallSelect = "SELECT \
 	\sum(heap_blks_read) :: BigInt as heap_read, \
     \sum(heap_blks_hit) :: BigInt as heap_hit, \
     \sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) :: Float as buffer_avg \
-    \FROM pg_statio_user_tables"
+    \FROM pg_statio_user_tables \
+    \WHERE heap_blks_read > 0"
 
 sharredBufferTableText :: Doc
 sharredBufferTableText = text "(table, % of sharred buffer hits)"
